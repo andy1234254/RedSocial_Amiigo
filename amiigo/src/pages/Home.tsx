@@ -734,7 +734,7 @@ export default function Home() {
         </button>
 
         <div className="hidden md:block text-center mb-10 mt-4">         
-           <img src="/logoAmiigo.png" alt="Amiigo" className="mx-auto h-20 object-contain" />
+           <img src="public/logoAmiigo.png" alt="Amiigo" className="mx-auto h-20 object-contain" />
         </div>
         <div className="h-8 md:hidden mb-4"></div>
         {/* CONTENEDOR DE USUARIOS*/}

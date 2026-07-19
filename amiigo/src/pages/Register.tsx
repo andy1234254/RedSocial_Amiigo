@@ -147,7 +147,7 @@ export default function Register() {
       <div className="w-full max-w-md bg-[#2a2a2a] rounded-[2rem] border-2 border-white p-8 shadow-2xl relative overflow-hidden">
         
         <div className="text-center mb-8">
-          <img src="/logoAmiigo.png" alt="Amiigo" className="mx-auto h-12 md:h-16 object-contain mb-2" />
+          <img src="public/logoAmiigo.png" alt="Amiigo" className="mx-auto h-12 md:h-16 object-contain mb-2" />
           <p className="text-gray-400 text-sm tracking-wider uppercase">
             {step === 1 && "Crea tu cuenta"}
             {step === 2 && "Verifica tu correo"}
