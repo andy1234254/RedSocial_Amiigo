@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Camera, Loader2, MapPin, User as UserIcon, Calendar, LogOut, UserMinus } from 'lucide-react';
 import { auth, db, storage } from '../firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayRemove, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 interface UserProfile {
   uid: string;
@@ -117,26 +117,27 @@ const handleRemoveFriend = async () => {
     if (!window.confirm(`¿Estás seguro de eliminar a ${profileUser.name} de tus amigos?`)) return;
 
     try {
+      const batch = writeBatch(db);
       const myRef = doc(db, 'users', currentUserData.uid);
       const friendRef = doc(db, 'users', profileUser.uid);
 
-      // Eliminamos al amigo de MI lista
-      await updateDoc(myRef, {
-        friendsList: arrayRemove(profileUser.uid)
+      batch.update(myRef, {
+        friendsList: arrayRemove(profileUser.uid),
+      });
+      batch.update(friendRef, {
+        friendsList: arrayRemove(currentUserData.uid),
       });
 
-      // Eliminamos MI ID de LA lista del amigo (bidireccional)
-      await updateDoc(friendRef, {
-        friendsList: arrayRemove(currentUserData.uid)
-      });
+      await batch.commit();
+
       setCurrentUserData({
         ...currentUserData,
-        friendsList: currentUserData.friendsList?.filter((friendId) => friendId !== profileUser.uid) || []
+        friendsList: currentUserData.friendsList?.filter((friendId) => friendId !== profileUser.uid) || [],
       });
-      alert("Amigo eliminado correctamente");
-      navigate('/home'); 
+      alert('Amigo eliminado correctamente');
+      navigate('/home');
     } catch (error) {
-      console.error("Error al eliminar amigo:", error);
+      console.error('Error al eliminar amigo:', error);
     }
   };
   // Función para cambiar imágenes directamente (Portada o Perfil)

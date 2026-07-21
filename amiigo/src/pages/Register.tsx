@@ -131,7 +131,10 @@ export default function Register() {
         name: formData.name,
         profilePicUrl: avatarUrl,
         coverPicUrl: coverUrl,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        friendsList: [],
+        isOnline: false,
+        lastSeen: new Date().toISOString(),
       });
 
       navigate('/home');

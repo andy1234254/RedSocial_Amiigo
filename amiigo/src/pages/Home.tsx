@@ -4,7 +4,7 @@ import { ArrowUp, User, UserPlus, Menu, X as XIcon, X, Trash2, Edit2, Check, Clo
 import { auth, db } from '../firebase';
 import { onAuthStateChanged} from 'firebase/auth';
 import ChatBox from './ChatBox'; 
-import { doc, getDocs, arrayUnion, collection, where, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, updateDoc, setDoc, runTransaction } from 'firebase/firestore';
+import { doc, getDocs, arrayUnion, collection, where, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, updateDoc, setDoc, runTransaction, writeBatch } from 'firebase/firestore';
 
 interface UserProfile {
   uid: string;
@@ -13,8 +13,18 @@ interface UserProfile {
   profilePicUrl: string;
   coverPicUrl: string;
   isOnline: boolean;
-  friendsList: string[]; 
+  friendsList: string[];
 }
+
+const normalizeUserData = (data: any, uid: string): UserProfile => ({
+  uid,
+  name: data.name || '',
+  email: data.email || '',
+  profilePicUrl: data.profilePicUrl || '',
+  coverPicUrl: data.coverPicUrl || '',
+  isOnline: data.isOnline === true,
+  friendsList: Array.isArray(data.friendsList) ? data.friendsList : [],
+});
 
 interface CommentData {
   id: string;
@@ -106,22 +116,29 @@ export default function Home() {
   const handleAcceptRequest = async (request: any) => {
     if (!currentUser) return;
     try {
-      // A. Actualizamos la solicitud a 'accepted'
-      await updateDoc(doc(db, 'friendRequests', request.id), { status: 'accepted' });
-      
-      // B. Agregamos el ID del remitente a NUESTRA lista de amigos
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        friendsList: arrayUnion(request.senderId) 
-      });
+      const batch = writeBatch(db);
+      const currentUserRef = doc(db, 'users', currentUser.uid);
+      const senderUserRef = doc(db, 'users', request.senderId);
+      const requestRef = doc(db, 'friendRequests', request.id);
 
-      // C. Agregamos NUESTRO ID a LA LISTA del remitente
-      await updateDoc(doc(db, 'users', request.senderId), {
-        friendsList: arrayUnion(currentUser.uid)
+      batch.update(currentUserRef, {
+        friendsList: arrayUnion(request.senderId),
       });
-      
-      await deleteDoc(doc(db, 'friendRequests', request.id));
+      batch.update(senderUserRef, {
+        friendsList: arrayUnion(currentUser.uid),
+      });
+      batch.delete(requestRef);
+
+      await batch.commit();
+
+      setCurrentUser((prev) => {
+        if (!prev) return prev;
+        const nextFriendsList = Array.from(new Set([...(prev.friendsList || []), request.senderId]));
+        return { ...prev, friendsList: nextFriendsList };
+      });
+      setPendingRequests((prev) => prev.filter((req) => req.id !== request.id));
     } catch (error) {
-      console.error("Error al aceptar solicitud:", error);
+      console.error('Error al aceptar solicitud:', error);
     }
   };
 
@@ -129,8 +146,9 @@ export default function Home() {
   const handleRejectRequest = async (requestId: string) => {
     try {
       await deleteDoc(doc(db, 'friendRequests', requestId));
+      setPendingRequests((prev) => prev.filter((req) => req.id !== requestId));
     } catch (error) {
-      console.error("Error al rechazar solicitud:", error);
+      console.error('Error al rechazar solicitud:', error);
     }
   };
   // BUSCAR USUARIOS
@@ -142,17 +160,15 @@ export default function Home() {
         setIsSearching(true);
         try {
           const querySnapshot = await getDocs(collection(db, 'users'));
-          const usersList: any[] = [];         
+          const usersList: UserProfile[] = [];
           querySnapshot.forEach((doc) => {
-            const userData = doc.data();
-            if (userData.uid !== currentUser.uid) {
-              usersList.push(userData);
+            if (doc.id !== currentUser.uid) {
+              usersList.push(normalizeUserData(doc.data(), doc.id));
             }
           });
-          
           setAllUsers(usersList);
         } catch (error) {
-          console.error("Error al cargar usuarios:", error);
+          console.error('Error al cargar usuarios:', error);
         } finally {
           setIsSearching(false);
         }
@@ -239,32 +255,57 @@ export default function Home() {
       try {
         await updateDoc(userRef, {
           isOnline: status,
-          lastSeen: new Date()
+          lastSeen: serverTimestamp(),
         });
       } catch (error) {
-        console.error("Error al actualizar estado de conexión:", error);
+        console.error('Error al actualizar estado de conexión:', error);
       }
     };
 
-    setOnlineStatus(true);
-    const handlePageHide = () => {
-      setOnlineStatus(false);
-    };
+    const updateOnline = () => setOnlineStatus(true);
+    const updateOffline = () => setOnlineStatus(false);
+
+    updateOnline();
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        setOnlineStatus(true);
+        updateOnline();
       } else {
-        setOnlineStatus(false);
+        updateOffline();
       }
     };
 
+    const handleFocus = () => updateOnline();
+    const handleBlur = () => updateOffline();
+    const handleOnline = () => updateOnline();
+    const handleOffline = () => updateOffline();
+    const handleBeforeUnload = () => updateOffline();
+    const handlePageHide = () => updateOffline();
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handlePageHide);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    const heartbeat = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        updateOnline();
+      }
+    }, 30000);
+
     return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handlePageHide);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      setOnlineStatus(false);
+      window.clearInterval(heartbeat);
+      updateOffline();
     };
   }, [currentUser?.uid]);
   
@@ -276,7 +317,7 @@ export default function Home() {
         const userDocRef = doc(db, 'users', user.uid);
         unsubscribeUserDoc = onSnapshot(userDocRef, (snapshot) => {
           if (snapshot.exists()) {
-            setCurrentUser(snapshot.data() as UserProfile);
+            setCurrentUser(normalizeUserData(snapshot.data(), snapshot.id));
           }
         });
       } else {
@@ -296,7 +337,7 @@ export default function Home() {
       const usersList: UserProfile[] = [];
       snapshot.forEach((doc) => {
         if (doc.id !== currentUser.uid) {
-          usersList.push({ uid: doc.id, ...(doc.data() as Omit<UserProfile, 'uid'>) });
+          usersList.push(normalizeUserData(doc.data(), doc.id));
         }
       });
       setFriends(usersList);
