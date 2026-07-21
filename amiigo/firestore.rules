@@ -23,9 +23,9 @@ service cloud.firestore {
         && request.auth.uid == userId;
 
       // Owner can update their own doc freely.
-      // Any signed-in user may also update another user's doc (needed
-      // when the receiver accepts a friend request and must push the
-      // sender's uid into the sender's friendsList via batch).
+      // Another user may update the doc ONLY for friendsList changes
+      // (friend request accept/reject/remove).  Profile fields are
+      // restricted to the owner to prevent identity spoofing.
       // Immutable fields (uid, email, createdAt) must never change.
       allow update: if isSignedIn()
         && (!request.resource.data.keys().hasAny(['uid'])
@@ -33,7 +33,13 @@ service cloud.firestore {
         && (!request.resource.data.keys().hasAny(['email'])
             || request.resource.data.email == resource.data.email)
         && (!request.resource.data.keys().hasAny(['createdAt'])
-            || request.resource.data.createdAt == resource.data.createdAt);
+            || request.resource.data.createdAt == resource.data.createdAt)
+        // Profile fields: ONLY the owner may modify them
+        && (request.auth.uid == userId
+            || !request.resource.data.keys().hasAny([
+                 'name', 'bio', 'age', 'gender', 'country',
+                 'profilePicUrl', 'coverPicUrl',
+                 'isOnline', 'lastSeen']));
     }
 
     // ── FRIEND REQUESTS ───────────────────────────────────────────────
