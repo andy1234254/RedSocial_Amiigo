@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Camera, Loader2, MapPin, User as UserIcon, Calendar, LogOut, UserMinus } from 'lucide-react';
 import { auth, db, storage } from '../firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc, arrayRemove, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayRemove, writeBatch, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 interface UserProfile {
   uid: string;
@@ -104,6 +104,21 @@ useEffect(() => {
         gender: formData.gender,
         country: formData.country,
       });
+
+      // Si el nombre cambió, actualizar todos los posts para mantener consistencia
+      if (formData.name !== profileUser.name) {
+        const postsQuery = query(
+          collection(db, 'posts'),
+          where('userId', '==', profileUser.uid)
+        );
+        const postsSnapshot = await getDocs(postsQuery);
+        const batch = writeBatch(db);
+        postsSnapshot.forEach((postDoc) => {
+          batch.update(postDoc.ref, { userName: formData.name });
+        });
+        await batch.commit();
+      }
+
       setProfileUser({ ...profileUser, ...formData });
       setIsEditing(false); 
     } catch (error) {
@@ -153,7 +168,7 @@ const handleRemoveFriend = async () => {
       await uploadBytes(storageRef, file);
       const downloadUrl = await getDownloadURL(storageRef);
 
-      // Actualizar Firestore
+      // 1. Actualizar el documento del usuario en Firestore
       const userRef = doc(db, 'users', profileUser.uid);
       if (type === 'cover') {
         await updateDoc(userRef, { coverPicUrl: downloadUrl });
@@ -162,6 +177,21 @@ const handleRemoveFriend = async () => {
         await updateDoc(userRef, { profilePicUrl: downloadUrl });
         setProfileUser({ ...profileUser, profilePicUrl: downloadUrl });
       }
+
+      // 2. Actualizar TODOS los posts anteriores del usuario para que
+      //    muestren la nueva imagen (la URL vieja deja de funcionar al
+      //    sobrescribir el archivo en Storage).
+      const fieldToUpdate = type === 'cover' ? 'userCover' : 'userAvatar';
+      const postsQuery = query(
+        collection(db, 'posts'),
+        where('userId', '==', profileUser.uid)
+      );
+      const postsSnapshot = await getDocs(postsQuery);
+      const batch = writeBatch(db);
+      postsSnapshot.forEach((postDoc) => {
+        batch.update(postDoc.ref, { [fieldToUpdate]: downloadUrl });
+      });
+      await batch.commit();
     } catch (error) {
       console.error(`Error subiendo foto de ${type}:`, error);
     } finally {
