@@ -266,7 +266,7 @@ export default function Register() {
               {isUploading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Guardando Perfil...
+                  Guardando Perfil....
                 </>
               ) : (
                 'Finalizar y Entrar'
