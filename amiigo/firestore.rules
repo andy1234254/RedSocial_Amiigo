@@ -1,0 +1,192 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isStringOrMissing(value) {
+      return value is string || value == null;
+    }
+
+    function isBoolOrMissing(value) {
+      return value is bool || value == null;
+    }
+
+    function isArrayOrMissing(value) {
+      return value is list || value == null;
+    }
+
+    function isFriendOf(ownerId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(ownerId))
+        && get(/databases/$(database)/documents/users/$(ownerId)).data.friendsList is list
+        && get(/databases/$(database)/documents/users/$(ownerId)).data.friendsList.hasAny([request.auth.uid]);
+    }
+
+    function chatMembers(chatId) {
+      return chatId.split('_');
+    }
+
+    function isTimestampOrStringOrMissing(value) {
+      return value is timestamp || value is string || value == null;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+
+      allow create: if request.auth.uid == userId
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email is string
+        && request.resource.data.name is string
+        && request.resource.data.profilePicUrl is string
+        && request.resource.data.coverPicUrl is string
+        && request.resource.data.createdAt is string
+        && isArrayOrMissing(request.resource.data.friendsList)
+        && isBoolOrMissing(request.resource.data.isOnline)
+        && isTimestampOrStringOrMissing(request.resource.data.lastSeen)
+        && isStringOrMissing(request.resource.data.bio)
+        && isStringOrMissing(request.resource.data.age)
+        && isStringOrMissing(request.resource.data.gender)
+        && isStringOrMissing(request.resource.data.country)
+        && request.resource.data.keys().hasOnly([
+          'uid', 'email', 'name', 'profilePicUrl', 'coverPicUrl',
+          'createdAt', 'friendsList', 'isOnline', 'lastSeen',
+          'bio', 'age', 'gender', 'country'
+        ]);
+
+      allow update: if request.auth.uid == userId
+        && (!request.resource.data.keys().hasAny(['uid']) || request.resource.data.uid == request.auth.uid)
+        && (!request.resource.data.keys().hasAny(['email']) || request.resource.data.email == resource.data.email)
+        && (!request.resource.data.keys().hasAny(['createdAt']) || request.resource.data.createdAt == resource.data.createdAt)
+        && isArrayOrMissing(request.resource.data.friendsList)
+        && isBoolOrMissing(request.resource.data.isOnline)
+        && isTimestampOrStringOrMissing(request.resource.data.lastSeen)
+        && isStringOrMissing(request.resource.data.bio)
+        && isStringOrMissing(request.resource.data.age)
+        && isStringOrMissing(request.resource.data.gender)
+        && isStringOrMissing(request.resource.data.country)
+        && request.resource.data.keys().hasOnly([
+          'uid', 'email', 'name', 'profilePicUrl', 'coverPicUrl',
+          'createdAt', 'friendsList', 'isOnline', 'lastSeen',
+          'bio', 'age', 'gender', 'country'
+        ]);
+    }
+
+    match /friendRequests/{requestId} {
+      allow create: if isSignedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.receiverId is string
+        && request.resource.data.receiverId != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.senderName is string
+        && request.resource.data.senderAvatar is string
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.keys().hasOnly([
+          'senderId', 'senderName', 'senderAvatar',
+          'receiverId', 'status', 'timestamp'
+        ]);
+
+      allow read: if isSignedIn()
+        && (request.auth.uid == resource.data.receiverId
+            || request.auth.uid == resource.data.senderId);
+
+      allow update: if isSignedIn()
+        && request.auth.uid == resource.data.receiverId
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['accepted', 'pending']
+        && request.resource.data.senderId == resource.data.senderId
+        && request.resource.data.receiverId == resource.data.receiverId
+        && request.resource.data.senderName == resource.data.senderName
+        && request.resource.data.senderAvatar == resource.data.senderAvatar
+        && request.resource.data.timestamp == resource.data.timestamp
+        && request.resource.data.keys().hasOnly([
+          'senderId', 'senderName', 'senderAvatar',
+          'receiverId', 'status', 'timestamp'
+        ]);
+
+      allow delete: if isSignedIn()
+        && (request.auth.uid == resource.data.receiverId
+            || request.auth.uid == resource.data.senderId);
+    }
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.userName is string
+        && request.resource.data.userAvatar is string
+        && request.resource.data.userCover is string
+        && request.resource.data.likesCount is int
+        && request.resource.data.dislikesCount is int
+        && request.resource.data.comments is list
+        && request.resource.data.userReactions is map
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.keys().hasOnly([
+          'userId', 'text', 'userName', 'userAvatar', 'userCover',
+          'createdAt', 'likesCount', 'dislikesCount', 'comments', 'userReactions'
+        ]);
+
+      allow update: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'userId', 'text', 'userName', 'userAvatar', 'userCover',
+          'createdAt', 'likesCount', 'dislikesCount', 'comments', 'userReactions'
+        ])
+        && (
+          (
+            request.auth.uid == resource.data.userId
+            && (!request.resource.data.keys().hasAny(['userId']) || request.resource.data.userId == resource.data.userId)
+            && (!request.resource.data.keys().hasAny(['userName']) || request.resource.data.userName == resource.data.userName)
+            && (!request.resource.data.keys().hasAny(['userAvatar']) || request.resource.data.userAvatar == resource.data.userAvatar)
+            && (!request.resource.data.keys().hasAny(['userCover']) || request.resource.data.userCover == resource.data.userCover)
+            && (!request.resource.data.keys().hasAny(['createdAt']) || request.resource.data.createdAt == resource.data.createdAt)
+            && (!request.resource.data.keys().hasAny(['text']) || request.resource.data.text is string)
+            && (!request.resource.data.keys().hasAny(['likesCount']) || request.resource.data.likesCount is int)
+            && (!request.resource.data.keys().hasAny(['dislikesCount']) || request.resource.data.dislikesCount is int)
+            && (!request.resource.data.keys().hasAny(['comments']) || (request.resource.data.comments is list && validComments(request.resource.data.comments)))
+            && (!request.resource.data.keys().hasAny(['userReactions']) || request.resource.data.userReactions is map)
+          )
+          || (
+            isFriendOf(resource.data.userId)
+            && !request.resource.data.keys().hasAny(['userId', 'userName', 'userAvatar', 'userCover', 'createdAt', 'text'])
+            && (!request.resource.data.keys().hasAny(['likesCount']) || request.resource.data.likesCount is int)
+            && (!request.resource.data.keys().hasAny(['dislikesCount']) || request.resource.data.dislikesCount is int)
+            && (!request.resource.data.keys().hasAny(['comments']) || (request.resource.data.comments is list && validComments(request.resource.data.comments)))
+            && (!request.resource.data.keys().hasAny(['userReactions']) || request.resource.data.userReactions is map)
+          )
+        );
+
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+    }
+
+    match /chatMeta/{chatId} {
+      allow read: if isSignedIn();
+
+      allow create, update: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'lastSenderId', 'lastMessageAt', 'unreadFor'
+        ])
+        && (!request.resource.data.keys().hasAny(['lastSenderId']) || request.resource.data.lastSenderId is string)
+        && (!request.resource.data.keys().hasAny(['lastMessageAt']) || request.resource.data.lastMessageAt is timestamp)
+        && (!request.resource.data.keys().hasAny(['unreadFor']) || (
+          request.resource.data.unreadFor is map
+          && request.resource.data.unreadFor.keys().hasOnly(chatMembers(chatId))
+          && request.resource.data.unreadFor[chatMembers(chatId)[0]] is bool
+          && request.resource.data.unreadFor[chatMembers(chatId)[1]] is bool
+        ));
+
+      allow delete: if false;
+    }
+
+    match /chats/{chatId}/messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.timestamp is timestamp;
+      allow update, delete: if false;
+    }
+  }
+}
