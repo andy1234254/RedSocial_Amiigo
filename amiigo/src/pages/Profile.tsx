@@ -150,18 +150,25 @@ const handleRemoveFriend = async () => {
     if (!window.confirm(`¿Estás seguro de eliminar a ${profileUser.name} de tus amigos?`)) return;
 
     try {
-      const batch = writeBatch(db);
+      // 1. Eliminar al amigo de MI lista de amigos (arrayRemove en mi propio doc)
       const myRef = doc(db, 'users', currentUserData.uid);
-      const friendRef = doc(db, 'users', profileUser.uid);
-
-      batch.update(myRef, {
+      await updateDoc(myRef, {
         friendsList: arrayRemove(profileUser.uid),
       });
-      batch.update(friendRef, {
-        friendsList: arrayRemove(currentUserData.uid),
-      });
 
-      await batch.commit();
+      // 2. Eliminarme de la lista de amigos DEL OTRO usuario
+      //    Lee el documento del amigo, filtra el array y escribe el resultado.
+      //    No se usa arrayRemove en el doc ajeno porque Firestore no puede
+      //    evaluar FieldValue sentinels en las reglas de seguridad.
+      const friendRef = doc(db, 'users', profileUser.uid);
+      const friendSnap = await getDoc(friendRef);
+      if (friendSnap.exists()) {
+        const friendData = friendSnap.data();
+        const updatedFriendsList = (friendData.friendsList || []).filter(
+          (uid: string) => uid !== currentUserData.uid
+        );
+        await updateDoc(friendRef, { friendsList: updatedFriendsList });
+      }
 
       setCurrentUserData({
         ...currentUserData,

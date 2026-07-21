@@ -4,7 +4,7 @@ import { ArrowUp, User, UserPlus, Menu, X as XIcon, X, Trash2, Edit2, Check, Clo
 import { auth, db } from '../firebase';
 import { onAuthStateChanged} from 'firebase/auth';
 import ChatBox from './ChatBox'; 
-import { doc, getDocs, arrayUnion, collection, where, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, updateDoc, setDoc, runTransaction, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, getDocs, arrayUnion, collection, where, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, updateDoc, setDoc, runTransaction } from 'firebase/firestore';
 
 interface UserProfile {
   uid: string;
@@ -116,20 +116,30 @@ export default function Home() {
   const handleAcceptRequest = async (request: any) => {
     if (!currentUser) return;
     try {
-      const batch = writeBatch(db);
+      // 1. Agregar al remitente en MI lista de amigos
       const currentUserRef = doc(db, 'users', currentUser.uid);
-      const senderUserRef = doc(db, 'users', request.senderId);
-      const requestRef = doc(db, 'friendRequests', request.id);
-
-      batch.update(currentUserRef, {
+      await updateDoc(currentUserRef, {
         friendsList: arrayUnion(request.senderId),
       });
-      batch.update(senderUserRef, {
-        friendsList: arrayUnion(currentUser.uid),
-      });
-      batch.delete(requestRef);
 
-      await batch.commit();
+      // 2. Agregarme en la lista de amigos DEL REMITENTE
+      //    Lee el documento del remitente, agrega mi UID y escribe el resultado.
+      //    No se usa arrayUnion en el doc ajeno porque Firestore no puede
+      //    evaluar FieldValue sentinels en las reglas de seguridad.
+      const senderUserRef = doc(db, 'users', request.senderId);
+      const senderSnap = await getDoc(senderUserRef);
+      if (senderSnap.exists()) {
+        const senderData = senderSnap.data();
+        const currentFriends = senderData.friendsList || [];
+        if (!currentFriends.includes(currentUser.uid)) {
+          await updateDoc(senderUserRef, {
+            friendsList: [...currentFriends, currentUser.uid],
+          });
+        }
+      }
+
+      // 3. Eliminar la solicitud de amistad
+      await deleteDoc(doc(db, 'friendRequests', request.id));
 
       setCurrentUser((prev) => {
         if (!prev) return prev;
