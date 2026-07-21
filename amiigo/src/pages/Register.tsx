@@ -109,36 +109,50 @@ export default function Register() {
 
       // 1. Si subió Foto de Perfil, la guardamos en Storage
       if (profilePic) {
-        // Creamos una referencia en Storage: ruta 'users/{uid}/profilePic'
-        const profileRef = ref(storage, `users/${user.uid}/profilePic`);
-        await uploadBytes(profileRef, profilePic);
-        avatarUrl = await getDownloadURL(profileRef);
+        try {
+          const profileRef = ref(storage, `users/${user.uid}/profilePic`);
+          await uploadBytes(profileRef, profilePic);
+          avatarUrl = await getDownloadURL(profileRef);
+        } catch (storageError: any) {
+          console.error('Error al subir foto de perfil:', storageError);
+          throw new Error(`Error en Storage (perfil): ${storageError.message}`);
+        }
       }
 
       // 2. Si subió Foto de Portada, la guardamos en Storage
       if (coverPic) {
-        // Creamos una referencia en Storage: ruta 'users/{uid}/coverPic'
-        const coverRef = ref(storage, `users/${user.uid}/coverPic`);
-        await uploadBytes(coverRef, coverPic);
-        coverUrl = await getDownloadURL(coverRef);
+        try {
+          const coverRef = ref(storage, `users/${user.uid}/coverPic`);
+          await uploadBytes(coverRef, coverPic);
+          coverUrl = await getDownloadURL(coverRef);
+        } catch (storageError: any) {
+          console.error('Error al subir foto de portada:', storageError);
+          throw new Error(`Error en Storage (portada): ${storageError.message}`);
+        }
       }
 
       // 3. Guardamos los datos finales (con las URLs reales) en Firestore
       const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email,
-        name: formData.name,
-        profilePicUrl: avatarUrl,
-        coverPicUrl: coverUrl,
-        createdAt: new Date().toISOString(),
-        friendsList: [],
-        isOnline: false,
-        lastSeen: new Date().toISOString(),
-      });
+      try {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          name: formData.name,
+          profilePicUrl: avatarUrl,
+          coverPicUrl: coverUrl,
+          createdAt: new Date().toISOString(),
+          friendsList: [],
+          isOnline: false,
+          lastSeen: new Date().toISOString(),
+        });
+      } catch (firestoreError: any) {
+        console.error('Error al guardar datos en Firestore:', firestoreError);
+        throw new Error(`Error en Firestore: ${firestoreError.message}`);
+      }
 
       navigate('/home');
     } catch (err: any) {
+      console.error('Error en handleProfileSubmit:', err);
       setError("Error al guardar el perfil: " + err.message);
     } finally {
       setIsUploading(false);
