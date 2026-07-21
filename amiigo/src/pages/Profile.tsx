@@ -195,7 +195,7 @@ const handleRemoveFriend = async () => {
           onClick={() => navigate('/home')}
           className="flex items-center gap-2 hover:text-teal-400 transition-colors uppercase text-sm font-bold tracking-wider"
         >
-          <ArrowLeft className="w-5 h-5" /> Regresar
+          <ArrowLeft className="w-5 h-5" /> 
         </button>
         <h1 className="text-xl md:text-2xl font-serif tracking-widest absolute left-1/2 -translate-x-1/2 pointer-events-none">MI PERFIL</h1>
         <div className="flex items-center gap-2">
@@ -206,6 +206,7 @@ const handleRemoveFriend = async () => {
                 onClick={() => setIsEditing(true)}
                 className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/10 px-4 py-2 rounded-lg text-white transition-colors text-sm font-bold uppercase tracking-wider backdrop-blur-sm"
               >
+                <UserIcon className="w-4 h-4" />
                 <span className="hidden md:inline">Editar Perfil</span>
               </button>
             ) : (
