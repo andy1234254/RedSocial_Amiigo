@@ -117,6 +117,24 @@ useEffect(() => {
           batch.update(postDoc.ref, { userName: formData.name });
         });
         await batch.commit();
+
+        // También actualizar el nombre en los comentarios dentro de cada post
+        for (const postDoc of postsSnapshot.docs) {
+          const postData = postDoc.data();
+          const comments = postData.comments || [];
+          const hasStaleComments = comments.some(
+            (c: any) => c.userId === profileUser.uid
+          );
+          if (hasStaleComments) {
+            const updatedComments = comments.map((c: any) => {
+              if (c.userId === profileUser.uid) {
+                return { ...c, userName: formData.name };
+              }
+              return c;
+            });
+            await updateDoc(postDoc.ref, { comments: updatedComments });
+          }
+        }
       }
 
       setProfileUser({ ...profileUser, ...formData });
@@ -182,6 +200,7 @@ const handleRemoveFriend = async () => {
       //    muestren la nueva imagen (la URL vieja deja de funcionar al
       //    sobrescribir el archivo en Storage).
       const fieldToUpdate = type === 'cover' ? 'userCover' : 'userAvatar';
+      const commentFieldToUpdate = type === 'cover' ? 'userCover' : 'userAvatar';
       const postsQuery = query(
         collection(db, 'posts'),
         where('userId', '==', profileUser.uid)
@@ -192,6 +211,25 @@ const handleRemoveFriend = async () => {
         batch.update(postDoc.ref, { [fieldToUpdate]: downloadUrl });
       });
       await batch.commit();
+
+      // 3. Actualizar los comentarios del usuario dentro de cada post
+      //    para que también reflejen la nueva imagen.
+      for (const postDoc of postsSnapshot.docs) {
+        const postData = postDoc.data();
+        const comments = postData.comments || [];
+        const hasStaleComments = comments.some(
+          (c: any) => c.userId === profileUser.uid
+        );
+        if (hasStaleComments) {
+          const updatedComments = comments.map((c: any) => {
+            if (c.userId === profileUser.uid) {
+              return { ...c, [commentFieldToUpdate]: downloadUrl };
+            }
+            return c;
+          });
+          await updateDoc(postDoc.ref, { comments: updatedComments });
+        }
+      }
     } catch (error) {
       console.error(`Error subiendo foto de ${type}:`, error);
     } finally {

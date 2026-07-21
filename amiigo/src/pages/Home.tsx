@@ -732,20 +732,24 @@ export default function Home() {
                                 {comments
                                   .slice()
                                   .sort((a, b) => Number(b.createdAt?.toDate?.() || b.createdAt || 0) - Number(a.createdAt?.toDate?.() || a.createdAt || 0))
-                                  .map((comment) => (
+                                  .map((comment) => {
+                                    const commentUser = userMap.get(comment.userId);
+                                    const commentAvatar = commentUser?.profilePicUrl || comment.userAvatar;
+                                    const commentName = commentUser?.name || comment.userName;
+                                    return (
                                     <div key={comment.id} className="rounded-xl border border-white/10 bg-white/5 p-2">
                                       <div className="flex items-center gap-2">
                                         <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/10">
-                                          <img src={comment.userAvatar} alt={comment.userName} className="h-full w-full object-cover" />
+                                          <img src={commentAvatar} alt={commentName} className="h-full w-full object-cover" />
                                         </div>
                                         <div>
-                                          <p className="text-sm font-semibold text-white">{comment.userName}</p>
+                                          <p className="text-sm font-semibold text-white">{commentName}</p>
                                           <p className="text-[10px] uppercase tracking-widest text-gray-400">Comentario</p>
                                         </div>
                                       </div>
                                       <p className="mt-2 text-sm text-gray-200">{comment.text}</p>
                                     </div>
-                                  ))}
+                                  );})}
                               </div>
                             )}
                           </div>
