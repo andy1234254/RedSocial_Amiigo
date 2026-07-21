@@ -498,6 +498,12 @@ export default function Home() {
     return misAmigos.includes(friend.uid);
   });
 
+  // Mapa de usuarios para resolver datos actuales (nombre, foto, portada)
+  // en vez de usar los datos estáticos guardados en el post al momento de crearlo.
+  const userMap = new Map<string, UserProfile>();
+  if (currentUser) userMap.set(currentUser.uid, currentUser);
+  friends.forEach(f => userMap.set(f.uid, f));
+
   if (!currentUser) {
     return (
       <div className="flex h-screen w-full bg-[#1a1a1a] items-center justify-center text-white font-sans">
@@ -584,14 +590,21 @@ export default function Home() {
                   const likesCount = Number(post.likesCount || 0);
                   const dislikesCount = Number(post.dislikesCount || 0);
 
+                  // Resolver datos actuales del usuario (nombre, foto, portada)
+                  // en vez de usar los valores estáticos del post.
+                  const postUser = userMap.get(post.userId);
+                  const postAvatar  = postUser?.profilePicUrl  || post.userAvatar;
+                  const postCover   = postUser?.coverPicUrl    || post.userCover;
+                  const postName    = postUser?.name           || post.userName;
+
                   return (
                     <div 
                       key={post.id} 
                       className="relative w-full min-h-[16rem] md:min-h-[20rem] rounded-[2rem] border border-white/10 overflow-hidden group shadow-lg hover:shadow-[0_0_25px_rgba(99,102,241,0.16)] transition-all animate-fade-in"
                     >
                       <img 
-                        src={post.userCover} 
-                        alt={`Portada de ${post.userName}`} 
+                        src={postCover} 
+                        alt={`Portada de ${postName}`} 
                         className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/30"></div>
@@ -622,10 +635,10 @@ export default function Home() {
                             className="flex items-center gap-3 cursor-pointer group/user w-max"
                           >
                             <div className="w-12 h-12 rounded-full bg-black border-2 border-white/50 group-hover/user:border-indigo-400 overflow-hidden flex items-center justify-center shrink-0 shadow-lg transition-colors duration-300">
-                              <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
+                              <img src={postAvatar} alt={postName} className="w-full h-full object-cover" />
                             </div>
                             <h2 className="text-xl md:text-2xl font-black text-white drop-shadow-md uppercase truncate group-hover/user:text-indigo-400 transition-colors duration-300">
-                              {post.userName}
+                              {postName}
                             </h2>
                           </div>
                         </div>
