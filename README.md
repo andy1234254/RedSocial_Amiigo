@@ -9,7 +9,7 @@ The project was developed using React, Vite, TypeScript, Tailwind, Node.js, and 
 
 <img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif">
 
-<h4>Demo</h4>
+<h2>Demo</h2>
 
 [![Static Badge](https://img.shields.io/badge/AMIIGO-blue?style=for-the-badge&logo=react&logoColor=61DBFB&labelColor=black&color=blue)](https://red-social-amiigo.vercel.app/login)
 <h4>Demo Account</h4>
@@ -18,7 +18,7 @@ The project was developed using React, Vite, TypeScript, Tailwind, Node.js, and 
 
 <img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif">
 
-<h4>Screenshots</h4>
+<h2>Screenshots</h2>
 <img width="1205" height="645" alt="image" src="https://github.com/user-attachments/assets/d1dd93bc-9986-4841-b41b-8c9ecc4ab128" />
 <img width="1279" height="649" alt="image" src="https://github.com/user-attachments/assets/8160a358-6f4c-4c59-a94d-c6022256938b" />
 <img width="493" height="548" alt="image" src="https://github.com/user-attachments/assets/c863f457-8004-4bba-b8ca-0d0f83208c1d" />
