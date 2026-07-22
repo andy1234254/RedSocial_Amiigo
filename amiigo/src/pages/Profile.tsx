@@ -379,7 +379,6 @@ const handleRemoveFriend = async () => {
                 {profileUser.name}
               </h2>
             )}
-            <p className="text-gray-400 text-sm tracking-wider mt-1">{profileUser.email}</p>
           </div>
         </div>
 
